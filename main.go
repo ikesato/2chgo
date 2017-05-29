@@ -10,15 +10,18 @@ import (
 func main() {
 	arg, err := parseCmdLine()
 	if err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 	posts, err := nichan.Crawl(arg.Url)
-	if err == nil {
-		if arg.Format == "json" {
-			outJSON(posts)
-		} else {
-			outText(posts)
-		}
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
+	if arg.Format == "json" {
+		outJSON(posts)
+	} else {
+		outText(posts)
 	}
 }
 

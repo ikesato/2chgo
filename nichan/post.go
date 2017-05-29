@@ -2,12 +2,12 @@ package nichan
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -26,7 +26,7 @@ func Crawl(url string) ([]Post, error) {
 	res, err := http.Get(url)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return []Post{}, errors.New("Error: failed to http, URL => " + url)
 	}
 
 	defer res.Body.Close()
@@ -34,13 +34,13 @@ func Crawl(url string) ([]Post, error) {
 	utfBody := transform.NewReader(bufio.NewReader(res.Body), japanese.ShiftJIS.NewDecoder())
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(2)
+		return []Post{}, errors.New("Error: failed to convert to SJIS, URL => " + url)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(utfBody)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(3)
+		return []Post{}, errors.New("Error: failed to parse HTML, URL => " + url)
 	}
 
 	posts := []Post{}
