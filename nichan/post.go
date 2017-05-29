@@ -48,8 +48,14 @@ func Crawl(url string) ([]Post, error) {
 		var errno, errtime error
 		post := Post{}
 		post.No, errno = strconv.Atoi(strings.TrimSpace(s.Find("div.meta span.number").Text()))
+		if post.No > 1000 {
+			return
+		}
 		post.Name = strings.TrimSpace(s.Find("div.meta span.name").Text())
-		post.Time, errtime = time.Parse("2017/05/27(土) 14:23:15.40 997", strings.TrimSpace(s.Find("div.meta span.date").Text()))
+		t := strings.TrimSpace(s.Find("div.meta span.date").Text())
+		re, _ := regexp.Compile("\\(.?\\)")
+		t = re.ReplaceAllString(t, "")
+		post.Time, errtime = time.Parse("2006/01/02 15:04:05.00", t)
 		post.Uid = strings.TrimSpace(s.Find("div.meta span.uid").Text())
 		if errno != nil || errtime != nil {
 			fmt.Println("parse error")
@@ -64,16 +70,41 @@ func Crawl(url string) ([]Post, error) {
 		})
 
 		text, _ := m.Html()
-		re, _ := regexp.Compile("\\s*\\<br/\\>\\s*")
+
+		// "<br/>" -> "\n"
+		re = regexp.MustCompile("\\s*\\<br/\\>\\s*")
 		text = re.ReplaceAllString(text, "\n")
-		text = strings.TrimSpace(text)
-		re, _ = regexp.Compile("\\<[\\S\\s]+?\\>") // remove all tags
+
+		// remove all tags
+		re = regexp.MustCompile("\\<[\\S\\s]+?\\>")
 		text = re.ReplaceAllString(text, "")
+
+		// "&gt;" -> ">"
+		re = regexp.MustCompile("&gt;")
+		text = re.ReplaceAllString(text, ">")
+
+		// "&lt;" -> "<"
+		re = regexp.MustCompile("&lt;")
+		text = re.ReplaceAllString(text, "<")
+
+		// "&amp;" -> "&"
+		re = regexp.MustCompile("&amp;")
+		text = re.ReplaceAllString(text, "&")
+
+		// "&#xx;"
+		re = regexp.MustCompile("&#(\\d+);")
+		for {
+			group := re.FindStringSubmatch(text)
+			if group == nil {
+				break
+			}
+			num, _ := strconv.Atoi(group[1])
+			text = regexp.MustCompile("&#\\d+;").ReplaceAllString(text, string(num))
+		}
+
 		text = strings.TrimSpace(text)
-		//fmt.Println("-------------------------------------------")
-		//fmt.Printf("%v %v: %v (%v)\n", date, no, name, uid)
-		//fmt.Printf("%v\n", text)
 		post.Message = text
+		posts = append(posts, post)
 	})
 	return posts, nil
 }

@@ -26,7 +26,7 @@ func parseCmdLine() (Args, error) {
 		fmt.Println(goopt.Usage())
 		return arg, errors.New("need URL")
 	}
-	fmt.Println("aaaaaaaaaaaa", *format)
+	fmt.Println("TODO: format : ", *format)
 
 	arg.Url = goopt.Args[0]
 	return arg, nil
