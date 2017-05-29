@@ -15,11 +15,11 @@ import (
 )
 
 type Post struct {
-	No      int
-	Name    string
-	Message string
-	Uid     string
-	Time    time.Time
+	No      int       `json:"no"`
+	Name    string    `json:"name"`
+	Message string    `json:"message"`
+	Uid     string    `json:"uid"`
+	Time    time.Time `json:"time"`
 }
 
 func Crawl(url string) ([]Post, error) {
@@ -57,6 +57,7 @@ func Crawl(url string) ([]Post, error) {
 		t = re.ReplaceAllString(t, "")
 		post.Time, errtime = time.Parse("2006/01/02 15:04:05.00", t)
 		post.Uid = strings.TrimSpace(s.Find("div.meta span.uid").Text())
+		post.Uid = regexp.MustCompile("^ID:").ReplaceAllString(post.Uid, "")
 		if errno != nil || errtime != nil {
 			fmt.Println("parse error")
 			fmt.Println(errno)

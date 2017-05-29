@@ -7,7 +7,8 @@ import (
 )
 
 type Args struct {
-	Url string
+	Url    string
+	Format string
 }
 
 func parseCmdLine() (Args, error) {
@@ -16,7 +17,7 @@ func parseCmdLine() (Args, error) {
 	}
 	goopt.Version = "1.0"
 	goopt.Summary = "2chgo [Options..] URL"
-	var format = goopt.Alternatives([]string{"-f", "--color"},
+	var format = goopt.Alternatives([]string{"-f", "--format"},
 		[]string{"text", "json"},
 		"Specify the format of output, default format is text")
 	goopt.Parse(nil)
@@ -26,8 +27,7 @@ func parseCmdLine() (Args, error) {
 		fmt.Println(goopt.Usage())
 		return arg, errors.New("need URL")
 	}
-	fmt.Println("TODO: format : ", *format)
-
+	arg.Format = *format
 	arg.Url = goopt.Args[0]
 	return arg, nil
 }
