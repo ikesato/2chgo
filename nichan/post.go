@@ -8,11 +8,14 @@ import (
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
+
+const DEBUG = true
 
 type Post struct {
 	No      int       `json:"no"`
@@ -23,18 +26,29 @@ type Post struct {
 }
 
 func Crawl(url string) ([]Post, error) {
-	res, err := http.Get(url)
-	if err != nil {
-		fmt.Println(err)
-		return []Post{}, errors.New("Error: failed to http, URL => " + url)
-	}
+	var utfBody *transform.Reader
+	var err error
+	if !DEBUG {
+		res, err := http.Get(url)
+		if err != nil {
+			fmt.Println(err)
+			return []Post{}, errors.New("Error: failed to http, URL => " + url)
+		}
 
-	defer res.Body.Close()
+		defer res.Body.Close()
 
-	utfBody := transform.NewReader(bufio.NewReader(res.Body), japanese.ShiftJIS.NewDecoder())
-	if err != nil {
-		fmt.Println(err)
-		return []Post{}, errors.New("Error: failed to convert to SJIS, URL => " + url)
+		utfBody = transform.NewReader(bufio.NewReader(res.Body), japanese.ShiftJIS.NewDecoder())
+		if err != nil {
+			fmt.Println(err)
+			return []Post{}, errors.New("Error: failed to convert to SJIS, URL => " + url)
+		}
+	} else {
+		fp, err := os.OpenFile("a.html", os.O_RDONLY, 0644)
+		if err != nil {
+			fmt.Println(err)
+			return []Post{}, errors.New("Error: failed to open file")
+		}
+		utfBody = transform.NewReader(bufio.NewReader(fp), japanese.ShiftJIS.NewDecoder())
 	}
 
 	doc, err := goquery.NewDocumentFromReader(utfBody)
