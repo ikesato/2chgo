@@ -8,6 +8,7 @@ import (
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -68,14 +69,13 @@ func Crawl(url string) (*Thread, error) {
 	thread.Title = strings.TrimSpace(doc.Find("h1").Text())
 	thread.Title = regexp.MustCompile("\\[無断転載禁止\\]©2ch.net$").ReplaceAllString(thread.Title, "")
 	thread.Title = strings.TrimSpace(thread.Title)
+	titleBase := regexp.MustCompile("\\d+$").ReplaceAllString(thread.Title, "")
+	titleBase = regexp.MustCompile("\\d+\\D$").ReplaceAllString(titleBase, "")
 
 	doc.Find(".menubottommenu a.menuitem").EachWithBreak(func(i int, s *goquery.Selection) bool {
 		match, _ := regexp.MatchString("掲示板に戻る", s.Text())
 		if match {
 			thread.BoardURL = strings.TrimSpace(s.AttrOr("href", ""))
-			if strings.HasPrefix(thread.BoardURL, "//") {
-				thread.BoardURL = "https:" + thread.BoardURL
-			}
 			return false
 		}
 		return true
@@ -102,11 +102,17 @@ func Crawl(url string) (*Thread, error) {
 		}
 
 		m := s.Find("div.message span")
+
+		nextURL := findNextURL(m, titleBase, post.No)
+		if len(nextURL) > 0 {
+			thread.NextURL = nextURL
+		}
+
+		// <a>
 		m.Find("a").Each(func(_ int, link *goquery.Selection) {
 			text := strings.TrimSpace(link.Text())
 			link.ReplaceWithHtml(text)
 		})
-
 		text, _ := m.Html()
 
 		// "<br/>" -> "\n"
@@ -144,5 +150,33 @@ func Crawl(url string) (*Thread, error) {
 		post.Message = text
 		thread.Posts = append(thread.Posts, post)
 	})
+	thread.BoardURL = normalizeUrlScheme(thread.BoardURL, url)
+	thread.NextURL = normalizeUrlScheme(thread.NextURL, url)
 	return thread, nil
+}
+
+func findNextURL(m *goquery.Selection, titleBase string, no int) string {
+	if no <= 900 {
+		return ""
+	}
+	text := m.Text()
+	if strings.Index(text, "次") == -1 {
+		return ""
+	}
+	if strings.Index(text, titleBase) == -1 {
+		return ""
+	}
+	return m.Find("a").Last().AttrOr("href", "")
+}
+
+func normalizeUrlScheme(targetURL, baseURL string) string {
+	burl, _ := url.Parse(baseURL)
+	if strings.HasPrefix(targetURL, "//") {
+		return burl.Scheme + ":" + targetURL
+	}
+	turl, _ := url.Parse(targetURL)
+	if turl.Scheme == "http" && burl.Scheme == "https" {
+		return regexp.MustCompile("^http:").ReplaceAllString(targetURL, "https:")
+	}
+	return targetURL
 }
