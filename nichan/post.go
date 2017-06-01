@@ -25,14 +25,21 @@ type Post struct {
 	Time    time.Time `json:"time"`
 }
 
-func Crawl(url string) ([]Post, error) {
+type Thread struct {
+	Title    string
+	BoardURL string
+	NextURL  string
+	Posts    []Post
+}
+
+func Crawl(url string) (*Thread, error) {
 	var utfBody *transform.Reader
 	var err error
 	if !DEBUG {
 		res, err := http.Get(url)
 		if err != nil {
 			fmt.Println(err)
-			return []Post{}, errors.New("Error: failed to http, URL => " + url)
+			return nil, errors.New("Error: failed to http, URL => " + url)
 		}
 
 		defer res.Body.Close()
@@ -40,13 +47,13 @@ func Crawl(url string) ([]Post, error) {
 		utfBody = transform.NewReader(bufio.NewReader(res.Body), japanese.ShiftJIS.NewDecoder())
 		if err != nil {
 			fmt.Println(err)
-			return []Post{}, errors.New("Error: failed to convert to SJIS, URL => " + url)
+			return nil, errors.New("Error: failed to convert to SJIS, URL => " + url)
 		}
 	} else {
-		fp, err := os.OpenFile("a.html", os.O_RDONLY, 0644)
+		fp, err := os.OpenFile("b.html", os.O_RDONLY, 0644)
 		if err != nil {
 			fmt.Println(err)
-			return []Post{}, errors.New("Error: failed to open file")
+			return nil, errors.New("Error: failed to open file")
 		}
 		utfBody = transform.NewReader(bufio.NewReader(fp), japanese.ShiftJIS.NewDecoder())
 	}
@@ -54,10 +61,26 @@ func Crawl(url string) ([]Post, error) {
 	doc, err := goquery.NewDocumentFromReader(utfBody)
 	if err != nil {
 		fmt.Println(err)
-		return []Post{}, errors.New("Error: failed to parse HTML, URL => " + url)
+		return nil, errors.New("Error: failed to parse HTML, URL => " + url)
 	}
 
-	posts := []Post{}
+	var thread *Thread = &Thread{}
+	thread.Title = strings.TrimSpace(doc.Find("h1").Text())
+	thread.Title = regexp.MustCompile("\\[無断転載禁止\\]©2ch.net$").ReplaceAllString(thread.Title, "")
+	thread.Title = strings.TrimSpace(thread.Title)
+
+	doc.Find(".menubottommenu a.menuitem").EachWithBreak(func(i int, s *goquery.Selection) bool {
+		match, _ := regexp.MatchString("掲示板に戻る", s.Text())
+		if match {
+			thread.BoardURL = strings.TrimSpace(s.AttrOr("href", ""))
+			if strings.HasPrefix(thread.BoardURL, "//") {
+				thread.BoardURL = "https:" + thread.BoardURL
+			}
+			return false
+		}
+		return true
+	})
+
 	doc.Find("div.post").Each(func(i int, s *goquery.Selection) {
 		var errno, errtime error
 		post := Post{}
@@ -119,7 +142,7 @@ func Crawl(url string) ([]Post, error) {
 
 		text = strings.TrimSpace(text)
 		post.Message = text
-		posts = append(posts, post)
+		thread.Posts = append(thread.Posts, post)
 	})
-	return posts, nil
+	return thread, nil
 }
