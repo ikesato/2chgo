@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const DEBUG = true
+const DEBUG = false
 
 type Post struct {
 	No      int       `json:"no"`
