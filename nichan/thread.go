@@ -69,8 +69,7 @@ func Crawl(url string) (*Thread, error) {
 	thread.Title = strings.TrimSpace(doc.Find("h1").Text())
 	thread.Title = regexp.MustCompile("\\[無断転載禁止\\]©2ch.net$").ReplaceAllString(thread.Title, "")
 	thread.Title = strings.TrimSpace(thread.Title)
-	titleBase := regexp.MustCompile("\\d+$").ReplaceAllString(thread.Title, "")
-	titleBase = regexp.MustCompile("\\d+\\D$").ReplaceAllString(titleBase, "")
+	titleBase := resolveTitleBase(thread.Title)
 
 	doc.Find(".menubottommenu a.menuitem").EachWithBreak(func(i int, s *goquery.Selection) bool {
 		match, _ := regexp.MatchString("掲示板に戻る", s.Text())
@@ -153,6 +152,13 @@ func Crawl(url string) (*Thread, error) {
 	thread.BoardURL = normalizeUrlScheme(thread.BoardURL, url)
 	thread.NextURL = normalizeUrlScheme(thread.NextURL, url)
 	return thread, nil
+}
+
+func resolveTitleBase(title string) string {
+	title = regexp.MustCompile("\\d+[\\D]*$").ReplaceAllString(title, "")
+	title = regexp.MustCompile("[０-９]+[^０-９]*$").ReplaceAllString(title, "")
+	title = regexp.MustCompile("[一二三四五六七八九〇十百千万零壱弐参肆伍陸漆捌玖拾壹弌貳貮參弎質柒百陌佰]+[^一二三四五六七八九〇十百千万零壱弐参肆伍陸漆捌玖拾壹弌貳貮參弎質柒百陌佰]*$").ReplaceAllString(title, "")
+	return title
 }
 
 func findNextURL(m *goquery.Selection, titleBase string, no int) string {
