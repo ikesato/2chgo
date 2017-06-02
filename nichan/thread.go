@@ -42,8 +42,11 @@ func Crawl(url string) (*Thread, error) {
 			fmt.Println(err)
 			return nil, errors.New("Error: failed to http, URL => " + url)
 		}
-
 		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("Error: expected status code is NOT 200 but got %v", res.StatusCode)
+		}
 
 		utfBody = transform.NewReader(bufio.NewReader(res.Body), japanese.ShiftJIS.NewDecoder())
 		if err != nil {
